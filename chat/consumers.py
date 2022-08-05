@@ -2,8 +2,8 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 import json
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
+
     async def connect(self):
-        print("connect 성공.")
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = 'chat_%s' % self.room_name
 
@@ -38,3 +38,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'message': message
         }))
+
+    # async def save_message(self, user_pk, study_pk, message, created_time):
+    #     user = User.objects.get(pk=user_pk)
+    #     study = Study.objects.get(pk=study_pk)
+    #     Message.objects.create(
+    #         user=user, study=study, content=message, on_created=created_time
+    #     )
