@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-import os
-import sys
+import os, sys, dotenv
 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tactic_on_table.settings')
@@ -14,7 +13,6 @@ def main():
         ) from exc
     execute_from_command_line(sys.argv)
 
-import dotenv
 if __name__ == "__main__":
     dotenv.read_dotenv()
     main()

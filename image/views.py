@@ -1,21 +1,24 @@
-import random
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 
-def makeRandomString():
-    keyword = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9']
-    result = ''
-    for i in range (36):
-        result += keyword[random.randrange(0, 36)]
-    return result
+from utils.getRandom import makeRandomString
+
 
 @csrf_exempt
-def post(request):
+def upload(request):
     if request.method == 'POST':
         try:
-            key = makeRandomString() + '.' + str(request.FILES['image'].content_type[6:])
+            file_type = str(request.FILES['image'].content_type[:6])
+            if file_type != 'image/':
+                return JsonResponse({"message": "이미지 파일이 아닙니다."}, status=400)
+            image_type = str(request.FILES['image'].content_type[6:])
+            if image_type not in ['jpg', 'jpeg', 'png']:
+                return JsonResponse({"message": "jpg, jpeg, png 파일만 업로드 가능합니다."}, status=400)
+            key = makeRandomString() + '.' + image_type
             FileSystemStorage().save(key, request.FILES['image'])
-            return JsonResponse({"id": key }, status = 200)
-        except KeyError:
-            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status = 500)
+            return JsonResponse({"id": key }, status=200)
+        except Exception:
+            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
+    else:
+        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
