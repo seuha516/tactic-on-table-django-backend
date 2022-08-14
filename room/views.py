@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from rest_framework.parsers import JSONParser
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import GameRoom
+from .models import Room
 from utils.getRandom import makeRandomString, makeRandomColor
 
 @csrf_exempt
@@ -39,10 +39,10 @@ def index(request):
 
             while True:
                 code = makeRandomString(16)
-                if not GameRoom.objects.filter(code=code).exists():
+                if not Room.objects.filter(code=code).exists():
                     break
 
-            GameRoom(
+            Room(
                 code=code,
                 name=data['name'],
                 password=data['password'],

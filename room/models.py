@@ -1,6 +1,6 @@
 from django.db import models
 
-class GameRoom(models.Model):
+class Room(models.Model):
     num=models.IntegerField(primary_key=True)
     code=models.CharField(max_length=16)
     name=models.CharField(max_length=30)

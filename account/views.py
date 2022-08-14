@@ -124,26 +124,27 @@ def user(request):
                 for playerUsername in json.loads(x[2]):
                     if (Account.objects.filter(username=playerUsername)).exists():
                         player = Account.objects.get(username=playerUsername)
+                        recordPlayers.append({
+                            'username': player.username,
+                            'nickname': player.nickname,
+                            'image': player.image,
+                        })
                     else:
-                        player = {'username': None, 'nickname': None, 'image': None}
-                    recordPlayers.append({
-                        'username': player.username,
-                        'nickname': player.nickname,
-                        'image': player.image,
-                    })
+                        recordPlayers.append(False)
 
                 recordResult = json.loads(x[3])
                 winnerUsername = recordResult.get('winner', None)
                 if winnerUsername is not None:
                     if (Account.objects.filter(username=winnerUsername)).exists():
                         player = Account.objects.get(username=winnerUsername)
-                    else:
-                        player = {'username': None, 'nickname': None, 'image': None}
-                    recordResult['winner'] = {
+                        recordResult['winner'] = {
                         'username': player.username,
                         'nickname': player.nickname,
                         'image': player.image,
                     }
+                    else:
+                        recordResult['winner'] = False
+
 
                 obj = {
                     'num': x[0],
@@ -251,26 +252,26 @@ def record(request):
                 for playerUsername in json.loads(x[2]):
                     if (Account.objects.filter(username=playerUsername)).exists():
                         player = Account.objects.get(username=playerUsername)
+                        recordPlayers.append({
+                            'username': player.username,
+                            'nickname': player.nickname,
+                            'image': player.image,
+                        })
                     else:
-                        player = {'username': None, 'nickname': None, 'image': None}
-                    recordPlayers.append({
-                        'username': player.username,
-                        'nickname': player.nickname,
-                        'image': player.image,
-                    })
+                        recordPlayers.append(False)
 
                 recordResult = json.loads(x[3])
                 winnerUsername = recordResult.get('winner', None)
                 if winnerUsername is not None:
                     if (Account.objects.filter(username=winnerUsername)).exists():
                         player = Account.objects.get(username=winnerUsername)
+                        recordResult['winner'] = {
+                            'username': player.username,
+                            'nickname': player.nickname,
+                            'image': player.image,
+                        }
                     else:
-                        player = {'username': None, 'nickname': None, 'image': None}
-                    recordResult['winner'] = {
-                        'username': player.username,
-                        'nickname': player.nickname,
-                        'image': player.image,
-                    }
+                        recordResult['winner'] = False
 
                 obj = {
                     'num': x[0],
