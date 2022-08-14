@@ -1,12 +1,13 @@
 from django.db import models
 
-class Room(models.Model):
-    roomId=models.IntegerField()
+class GameRoom(models.Model):
+    num=models.IntegerField(primary_key=True)
+    code=models.CharField(max_length=16)
     name=models.CharField(max_length=30)
     password=models.CharField(max_length=60)
+    color=models.CharField(max_length=10)
     game=models.IntegerField()
-    maxPeople=models.IntegerField()
-    status=models.IntegerField()
+    max_player=models.IntegerField()
     players=models.JSONField()
     class Meta:
         db_table = "room"

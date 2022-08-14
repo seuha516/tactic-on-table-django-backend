@@ -12,7 +12,7 @@ class Account(models.Model):
         db_table = "account"
 
 class Match_record(models.Model):
-    num=models.IntegerField()
+    num=models.IntegerField(primary_key=True)
     game=models.IntegerField()
     players=models.JSONField()
     result=models.JSONField()

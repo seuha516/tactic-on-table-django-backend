@@ -21,16 +21,10 @@ class JsonWebTokenMiddleWare(object):
 
     def __call__(self, request):
         try:
-            print(request.path)
             if (
-                    request.path != "/account/signup/"
-                    and request.path != "/account/login/"
-                    and request.path != "/account/logout/"
-                    and request.path != "/account/ranking/"
-                    and request.path != "/account/record/"
-                    and not ((request.path == "/account/user" or request.path == "/account/user/") and request.method == "GET")
-
-                    and request.path[:7] != "/media/"
+                    (request.path[:7] == "/media/" and request.method == "POST")
+                    or (request.path == "/account/check/")
+                    or ((request.path == "/account/user" or request.path == "/account/user/") and request.method != "GET")
             ):
                 access_token = request.COOKIES.get("access_token", None)
                 if not access_token:
@@ -46,11 +40,7 @@ class JsonWebTokenMiddleWare(object):
             return self.get_response(request)
 
         except (PermissionDenied, Account.DoesNotExist):
-            return JsonResponse(
-                {"message": "토큰이 올바르지 않습니다."}, status=HTTPStatus.UNAUTHORIZED
-            )
+            return JsonResponse({"message": "토큰이 올바르지 않습니다."}, status=HTTPStatus.UNAUTHORIZED)
 
         except ExpiredSignatureError:
-            return JsonResponse(
-                {"message": "토큰이 만료되었습니다."}, status=HTTPStatus.FORBIDDEN,
-            )
+            return JsonResponse({"message": "토큰이 만료되었습니다."}, status=HTTPStatus.FORBIDDEN)

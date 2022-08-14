@@ -142,3 +142,5 @@ CORS_ALLOWED_ORIGINS = [
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = 'true'

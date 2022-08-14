@@ -8,23 +8,24 @@ from .models import Account
 
 @csrf_exempt
 def signup(request):
-    if request.method == 'POST':
-        try:
+    try:
+        if request.method == 'POST':
             data = JSONParser().parse(request)
             if data['username'] == '':
-                return JsonResponse({"message": "사용할 ID를 입력해 주세요."}, status=401)
+                return JsonResponse({"message": "사용할 ID를 입력해 주세요."}, status=400)
             if data['password'] == '':
-                return JsonResponse({"message": "사용할 비밀번호를 입력해 주세요."}, status=401)
+                return JsonResponse({"message": "사용할 비밀번호를 입력해 주세요."}, status=400)
             if data['email'] == '':
-                return JsonResponse({"message": "사용할 이메일을 입력해 주세요."}, status=401)
+                return JsonResponse({"message": "사용할 이메일을 입력해 주세요."}, status=400)
             if data['nickname'] == '':
-                return JsonResponse({"message": "사용할 닉네임을 입력해 주세요."}, status=401)
+                return JsonResponse({"message": "사용할 닉네임을 입력해 주세요."}, status=400)
             if data['nickname'][0:2] == '익명':
                 return JsonResponse({"message": "닉네임을 \"익명\"으로 시작하게 만들 수 없습니다."}, status=400)
+
             if (Account.objects.filter(username=data['username'])).exists():
-                return JsonResponse({"message": "이미 있는 ID입니다."}, status=409)
+                return JsonResponse({"message": "이미 있는 ID입니다."}, status=400)
             if (Account.objects.filter(nickname=data['nickname'])).exists():
-                return JsonResponse({"message": "이미 있는 닉네임입니다."}, status=409)
+                return JsonResponse({"message": "이미 있는 닉네임입니다."}, status=400)
 
             hashedPassword = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             Account(
@@ -37,34 +38,32 @@ def signup(request):
                 score=[0,0,0,0,0,0,0,0,0,0,0,0]
             ).save()
 
-            token = jwt.encode({'username': data['username']},
-                               os.environ.get("JWT_SECRET"),
-                               os.environ.get("ALGORITHM"))
+            token = jwt.encode({'username': data['username']}, os.environ.get("JWT_SECRET"), os.environ.get("ALGORITHM"))
             response = JsonResponse({"username": data['username'],
                                      "nickname": data['nickname'],
-                                     "email": data['email'],
                                      "image": 'profile_default.png'},
                                     status=200);
             response.set_cookie('access_token', token, max_age=60*60*24*7, samesite='None', secure=True, httponly=True)
             return response
 
-        except Exception:
-            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
+        else:
+            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
-    else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+    except Exception:
+        return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
 
 @csrf_exempt
 def login(request):
-    if request.method == 'POST':
-        try:
+    try:
+        if request.method == 'POST':
             data = JSONParser().parse(request)
             if data['username'] == "":
-                return JsonResponse({"message": "ID를 입력하세요."}, status=401)
+                return JsonResponse({"message": "ID를 입력하세요."}, status=400)
             if data['password'] == "":
-                return JsonResponse({"message": "비밀번호를 입력하세요."}, status=401)
+                return JsonResponse({"message": "비밀번호를 입력하세요."}, status=400)
+
             if not (Account.objects.filter(username=data['username'])).exists():
-                return JsonResponse({"message": "존재하지 않는 ID입니다."}, status=401)
+                return JsonResponse({"message": "존재하지 않는 ID입니다."}, status=400)
 
             account = Account.objects.get(username=data['username'])
             if bcrypt.checkpw(data['password'].encode('utf-8'), account.hashed_password.encode('utf-8')):
@@ -73,26 +72,25 @@ def login(request):
                                    os.environ.get("ALGORITHM"))
                 response = JsonResponse({"username": account.username,
                                          "nickname": account.nickname,
-                                         "email": account.email,
                                          "image": account.image},
                                         status=200);
                 response.set_cookie('access_token', token, max_age=60*60*24*7, samesite='None', secure=True, httponly=True)
                 return response
             else:
-                return JsonResponse({"message": "비밀번호가 틀렸습니다."}, status=401)
+                return JsonResponse({"message": "비밀번호가 틀렸습니다."}, status=403)
 
-        except Exception:
-            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
+        else:
+            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
-    else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+    except Exception:
+        return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
 
 @csrf_exempt
 def check(request):
     if request.method == 'GET':
         return HttpResponse(status=200)
     else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
 @csrf_exempt
 def logout(request):
@@ -101,7 +99,7 @@ def logout(request):
         response.set_cookie('access_token', None, max_age=60*60*24*7, samesite='None', secure=True, httponly=True)
         return response
     else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
 @csrf_exempt
 def user(request):
@@ -113,7 +111,8 @@ def user(request):
             account = Account.objects.get(username=username)
 
             cursor = connection.cursor()
-            strSQL = "SELECT `num`, `game`, `players`, `result`, `date` FROM match_record WHERE %s MEMBER OF( players ) ORDER BY date DESC" \
+            strSQL = "SELECT `num`, `game`, `players`, `result`, `date` FROM match_record WHERE %s " \
+                     "MEMBER OF( players ) ORDER BY date DESC" \
                      % ('\"%s\"' % username)
             cursor.execute(strSQL)
             sqlData = cursor.fetchall()
@@ -123,7 +122,10 @@ def user(request):
             for x in sqlData:
                 recordPlayers = []
                 for playerUsername in json.loads(x[2]):
-                    player = Account.objects.get(username=playerUsername)
+                    if (Account.objects.filter(username=playerUsername)).exists():
+                        player = Account.objects.get(username=playerUsername)
+                    else:
+                        player = {'username': None, 'nickname': None, 'image': None}
                     recordPlayers.append({
                         'username': player.username,
                         'nickname': player.nickname,
@@ -133,7 +135,10 @@ def user(request):
                 recordResult = json.loads(x[3])
                 winnerUsername = recordResult.get('winner', None)
                 if winnerUsername is not None:
-                    player = Account.objects.get(username=winnerUsername)
+                    if (Account.objects.filter(username=winnerUsername)).exists():
+                        player = Account.objects.get(username=winnerUsername)
+                    else:
+                        player = {'username': None, 'nickname': None, 'image': None}
                     recordResult['winner'] = {
                         'username': player.username,
                         'nickname': player.nickname,
@@ -154,9 +159,9 @@ def user(request):
                 'email': account.email,
                 'nickname': account.nickname,
                 'image': account.image,
-                'total_score': account.total_score,
+                'totalScore': account.total_score,
                 'score': account.score,
-                'user_record': user_record
+                'userRecord': user_record
             }, status=200)
 
         elif request.method == 'PATCH':
@@ -167,15 +172,16 @@ def user(request):
 
             account = Account.objects.get(username=username)
             if not bcrypt.checkpw(data['originalPassword'].encode('utf-8'), account.hashed_password.encode('utf-8')):
-                return JsonResponse({"message": "비밀번호가 틀립니다."}, status=400)
+                return JsonResponse({"message": "비밀번호가 틀렸습니다."}, status=403)
 
             if data['email'] == '':
-                return JsonResponse({"message": "이메일을 입력해야 합니다."}, status=401)
+                return JsonResponse({"message": "이메일을 입력해야 합니다."}, status=400)
             if data['nickname'] == '':
-                return JsonResponse({"message": "닉네임을 입력해야 합니다."}, status=401)
+                return JsonResponse({"message": "닉네임을 입력해야 합니다."}, status=400)
+
             if (Account.objects.filter(nickname=data['nickname'])).exists():
                 if account.nickname != data['nickname']:
-                    return JsonResponse({"message": "이미 있는 닉네임입니다."}, status=409)
+                    return JsonResponse({"message": "이미 있는 닉네임입니다."}, status=400)
             if data['nickname'][0:2] == '익명':
                 return JsonResponse({"message": "닉네임을 \"익명\"으로 시작하게 만들 수 없습니다."}, status=400)
 
@@ -196,7 +202,6 @@ def user(request):
 
             response = JsonResponse({"username": data['username'],
                                      "nickname": data['nickname'],
-                                     "email": data['email'],
                                      "image": data['image']},
                                     status=200);
             return response
@@ -212,24 +217,24 @@ def user(request):
                 account.delete()
                 return HttpResponse(status=200)
             else:
-                return JsonResponse({"message": "비밀번호가 틀립니다."}, status=400)
+                return JsonResponse({"message": "비밀번호가 틀렸습니다."}, status=403)
 
         else:
-            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
     except Exception:
         return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
 
 @csrf_exempt
 def record(request):
-    if request.method == 'GET':
-        try:
+    try:
+        if request.method == 'GET':
             page = request.GET.get('page', '1')
             if not page.isdigit():
-                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=500)
+                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=400)
             page = int(page)
             if page < 1:
-                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=500)
+                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=400)
 
             cursor = connection.cursor()
             cursor.execute("SELECT COUNT(*) FROM match_record")
@@ -244,7 +249,10 @@ def record(request):
             for x in sqlData:
                 recordPlayers = []
                 for playerUsername in json.loads(x[2]):
-                    player = Account.objects.get(username=playerUsername)
+                    if (Account.objects.filter(username=playerUsername)).exists():
+                        player = Account.objects.get(username=playerUsername)
+                    else:
+                        player = {'username': None, 'nickname': None, 'image': None}
                     recordPlayers.append({
                         'username': player.username,
                         'nickname': player.nickname,
@@ -254,7 +262,10 @@ def record(request):
                 recordResult = json.loads(x[3])
                 winnerUsername = recordResult.get('winner', None)
                 if winnerUsername is not None:
-                    player = Account.objects.get(username=winnerUsername)
+                    if (Account.objects.filter(username=winnerUsername)).exists():
+                        player = Account.objects.get(username=winnerUsername)
+                    else:
+                        player = {'username': None, 'nickname': None, 'image': None}
                     recordResult['winner'] = {
                         'username': player.username,
                         'nickname': player.nickname,
@@ -272,22 +283,22 @@ def record(request):
 
             return JsonResponse({"result": result, "count": count[0][0]}, status=200)
 
-        except Exception:
-            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
+        else:
+            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
-    else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+    except Exception:
+        return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
 
 @csrf_exempt
 def ranking(request):
-    if request.method == 'GET':
-        try:
+    try:
+        if request.method == 'GET':
             page = request.GET.get('page', '1')
             if not page.isdigit():
-                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=500)
+                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=400)
             page = int(page)
             if page < 1:
-                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=500)
+                return JsonResponse({"message": "페이지가 잘못되었습니다."}, status=400)
 
             cursor = connection.cursor()
             cursor.execute("SELECT COUNT(*) FROM account")
@@ -311,8 +322,8 @@ def ranking(request):
 
             return JsonResponse({"result": result, "count": count[0][0]}, status=200)
 
-        except Exception:
-            return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
+        else:
+            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
 
-    else:
-        return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=500)
+    except Exception:
+        return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
