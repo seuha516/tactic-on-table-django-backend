@@ -17,6 +17,9 @@ class MOVE(IntEnum):
     CASTLING = 1
     PROMOTION = 2
     ENPASSANT = 3
+INITIAL = ['', 'N', 'B', 'R', 'Q', 'K']
+FILE = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+RANK = ['8', '7', '6', '5', '4', '3', '2', '1']
 
 def get88List():
     return [[None, None, None, None, None, None, None, None],
@@ -357,6 +360,61 @@ class ChessBoard:
 
         return False
 
+    # 기보 작성
+    def makeNotation(self, data):
+        ox = data['originalLocation']['x']
+        oy = data['originalLocation']['y']
+        tx = data['targetLocation']['x']
+        ty = data['targetLocation']['y']
+        moveType = data['moveType']
+        if self.turn == COLOR.BLACK:
+            ox = 7 - ox
+            tx = 7 - tx
+        p = self.board[ox][oy]
+
+        # 중복 가능성 체크
+        fileDuplicate = False
+        rankDuplicate = False
+        for i in range(8):
+            for j in range(8):
+                target = self.board[i][j]
+                if target and target.color == p.color and target.piece == p.piece\
+                    and not (target.location['x'] == ox and target.location['y'] == oy):
+                    moveList = self.getLegalMoveList(target)
+                    if moveList[tx][ty] is not None:
+                        if oy == j:
+                            fileDuplicate = True
+                        if ox == i:
+                            rankDuplicate = True
+
+        # 로그 작성 시작
+        ret = INITIAL[p.piece]
+        if fileDuplicate:
+            ret += FILE[oy]
+        if rankDuplicate:
+            ret += RANK[ox]
+        # 킬
+        if moveType == MOVE.ENPASSANT or self.board[tx][ty]:
+            ret += 'x'
+            if p.piece == PIECE.PAWN and not fileDuplicate:
+                ret = FILE[oy] + ret
+        # 도착지
+        ret += FILE[ty]
+        ret += RANK[tx]
+        # 특수 행마법
+        if moveType == MOVE.PROMOTION:
+            ret += '=' + INITIAL[data['piece']]
+        elif moveType == MOVE.CASTLING:
+            if ty == 6:
+                ret = '0-0'
+            else:
+                ret = '0-0-0'
+        elif moveType == MOVE.ENPASSANT:
+            ret += ' e.p.'
+        # 체크, 체크메이트는 따로
+
+        return ret
+
 
     # 서버로부터 로드
     def setting(self, data):
@@ -383,6 +441,27 @@ class ChessBoard:
                         self.board[i][j] = King(p['color'], p['location']['x'], p['location']['y'])
                     self.board[i][j].moved = p['moved']
                     self.board[i][j].enPassantWarning = p['enPassantWarning']
+
+    # 서버 저장용 데이터
+    def getSave(self):
+        board = get88List()
+        for i in range(8):
+            for j in range(8):
+                p = self.board[i][j]
+                board[i][j] = ({'color': p.color,
+                                'piece': p.piece,
+                                'location': {'x': p.location['x'], 'y': p.location['y']},
+                                'moved': p.moved,
+                                'enPassantWarning': p.enPassantWarning
+                                } if p else None)
+
+        return {
+            'players': self.players,
+            'turn': self.turn,
+            'board': board,
+            'lastMove': self.lastMove,
+            'log': self.log
+        }
 
     # 클라이언트용 데이터
     def getData(self):
@@ -442,7 +521,8 @@ class ChessBoard:
                         'type': 'GAME',
                         'info': 'WARNING',
                         'content': '%s(%d수) - 체크'\
-                            % (self.players[1 if self.players[0]['color'] == self.turn else 0]['nickname'], len(self.log))
+                            % (self.players[1 if self.players[0]['color'] == self.turn else 0]['nickname'],\
+                               (len(self.log) + 1) // 2)
                     }
                 }
             else:
@@ -463,29 +543,12 @@ class ChessBoard:
             } if finish else None
         }
 
-    # 서버 저장용 데이터
-    def getSave(self):
-        board = get88List()
-        for i in range(8):
-            for j in range(8):
-                p = self.board[i][j]
-                board[i][j] = ({'color': p.color,
-                                'piece': p.piece,
-                                'location': {'x': p.location['x'], 'y': p.location['y']},
-                                'moved': p.moved,
-                                'enPassantWarning': p.enPassantWarning
-                                } if p else None)
-
-        return {
-            'players': self.players,
-            'turn': self.turn,
-            'board': board,
-            'lastMove': self.lastMove,
-            'log': self.log
-        }
 
     # 이동
     def move(self, data):
+        # 로그 추가
+        logData = self.makeNotation(data)
+
         # data 읽기
         ox = data['originalLocation']['x']
         oy = data['originalLocation']['y']
@@ -495,9 +558,6 @@ class ChessBoard:
         if self.turn == COLOR.BLACK:
             ox = 7 - ox
             tx = 7 - tx
-
-        # (임시) 로그 적기
-        self.log.append('%d,%d->%d,%d(%d)' % (ox, oy, tx, ty, moveType))
 
         # moved, enPassantWarning 적용
         for i in range(8):
@@ -554,4 +614,10 @@ class ChessBoard:
                 rook.location = {'x': tx, 'y': 3}
                 self.board[tx][3] = rook
 
+        # 턴 변경
+        self.turn = 1 - self.turn
 
+        # 로그 마무리
+        if self.isDanger(self.searchKing(self.turn), 1 - self.turn):
+            logData += '#' if self.isNothingToDo() else '+'
+        self.log.append(logData)
