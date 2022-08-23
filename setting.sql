@@ -1,3 +1,5 @@
+-- os.environ 오류.. 수동으로 대체할 것
+
 CREATE SCHEMA `tactic_on_table_db` DEFAULT CHARACTER SET utf8mb4;
 use tactic_on_table_db;
 
