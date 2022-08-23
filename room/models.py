@@ -10,5 +10,6 @@ class Room(models.Model):
     max_player=models.IntegerField()
     players=models.JSONField()
     status=models.IntegerField()
+    data=models.JSONField()
     class Meta:
         db_table = "room"

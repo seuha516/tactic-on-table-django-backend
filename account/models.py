@@ -11,7 +11,7 @@ class Account(models.Model):
     class Meta:
         db_table = "account"
 
-class Match_record(models.Model):
+class MatchRecord(models.Model):
     num=models.IntegerField(primary_key=True)
     game=models.IntegerField()
     players=models.JSONField()

@@ -129,6 +129,12 @@ def user(request):
                             'nickname': player.nickname,
                             'image': player.image,
                         })
+                    elif playerUsername[0:2] == '익명':
+                        recordPlayers.append({
+                            'username': playerUsername,
+                            'nickname': playerUsername,
+                            'image': "profile_default.png",
+                        })
                     else:
                         recordPlayers.append(False)
 
@@ -142,6 +148,12 @@ def user(request):
                         'nickname': player.nickname,
                         'image': player.image,
                     }
+                    elif winnerUsername[0:2] == '익명':
+                        recordResult['winner'] = {
+                            'username': winnerUsername,
+                            'nickname': winnerUsername,
+                            'image': "profile_default.png",
+                        }
                     else:
                         recordResult['winner'] = False
 
@@ -257,6 +269,12 @@ def record(request):
                             'nickname': player.nickname,
                             'image': player.image,
                         })
+                    elif playerUsername[0:2] == '익명':
+                        recordPlayers.append({
+                            'username': playerUsername,
+                            'nickname': playerUsername,
+                            'image': "profile_default.png",
+                        })
                     else:
                         recordPlayers.append(False)
 
@@ -269,6 +287,12 @@ def record(request):
                             'username': player.username,
                             'nickname': player.nickname,
                             'image': player.image,
+                        }
+                    elif winnerUsername[0:2] == '익명':
+                        recordResult['winner'] = {
+                            'username': winnerUsername,
+                            'nickname': winnerUsername,
+                            'image': "profile_default.png",
                         }
                     else:
                         recordResult['winner'] = False

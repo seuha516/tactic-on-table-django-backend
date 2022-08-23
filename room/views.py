@@ -50,23 +50,11 @@ def index(request):
                 game=data['game'],
                 max_player=data['maxPlayer'],
                 players=[],
-                status=0
+                status=0,
+                data=None
             ).save()
 
             return JsonResponse({"code": code}, status=200)
-
-        else:
-            return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)
-
-    except Exception:
-        return JsonResponse({"message": "알 수 없는 오류가 발생했습니다."}, status=500)
-
-@csrf_exempt
-def update(request, code):
-    try:
-        if request.method == 'POST':
-            print('방 업데이트. 코드는' + code)
-            return JsonResponse({"message": "ok"}, status=200)
 
         else:
             return JsonResponse({"message": "올바르지 않은 접근입니다."}, status=405)

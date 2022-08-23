@@ -1,9 +1,11 @@
+import json, datetime
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-import json
+from copy import deepcopy
 
 from room.models import Room
-from utils.chess import ChessBoard
+from account.models import MatchRecord
 
+from utils.chess import ChessBoard
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
 
@@ -57,7 +59,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                     del players[i]
                     room.players = players
                     room.save()
-                    if len(room.players) == 0:
+                    if len(players) == 0:
                         room.delete()
                     else:
                         await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
@@ -81,108 +83,223 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             }})
             await self.channel_layer.group_send('lobby', {'type': 'sendData', 'data': {'type': 'LOBBY_UPDATE'}})
 
+            # 게임 중 연결 끊김
+            if room.status == 1:
+                room.status = 0
+                room.save()
+                # 체스
+                if room.game == 0 and len(players) > 0:
+                    # 게임 로드, 메시지 전송
+                    game = ChessBoard()
+                    game.setting(json.loads(room.data))
+                    data = game.getData()
+                    del data['message']
+                    winner = players[0]
+                    await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
+                        'type': 'CHATTING',
+                        'value': {
+                            'type': 'GAME',
+                            'info': 'RESULT',
+                            'content': '접속 종료로 인해 %s님이 승리했습니다.' % winner['nickname']
+                        }
+                    }})
+
+                    # 전적 업로드
+                    recordResult = {'type': '1on1', 'winner': winner['username']}
+                    recordPlayers = []
+                    for i in range(len(game.players)):
+                        recordPlayers.append(game.players[i]['username'])
+                    MatchRecord(
+                        game=0,
+                        players=recordPlayers,
+                        result=recordResult,
+                        date=datetime.datetime.now(),
+                    ).save()
+
+                    # result 작성, 전달
+                    data['result'] = {'winner': players[0]}
+                    await self.channel_layer.group_send(self.code, {'type': 'sendChess', 'data': data})
+
+                # TODO 3인 이상 게임일 때 대책 필요
+
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
         function_name = text_data_json['function']
         data = text_data_json['data']
 
+        if function_name == 'chatting':
+            await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {'type': 'CHATTING', 'value': data}})
         if function_name == 'joinRoom':
-            room = Room.objects.get(code=self.code)
-            players = room.players
-
-            dummyIndex = 0
-            duplicated = False
-            for i in range(len(players)):
-                if players[i] == 'dummy':
-                    dummyIndex = i
-                elif players[i]['username'] == data['username']:
-                    duplicated = True
-
-            self.hasInfo = False
-            if duplicated:
-                del players[dummyIndex]
-                room.players = players
-                room.save()
-                await self.send(text_data=json.dumps({
-                    'type': 'KICK',
-                    'value': '중복 접속이 감지되었습니다.'
-                }))
-                return
-
-            players[dummyIndex] = data
-            players[dummyIndex]['ready'] = False
-            room.players = players
-            room.save()
-            self.hasInfo = True
-
-            self.username = data['username']
-            self.nickname = data['nickname']
-
-            await self.channel_layer.group_send(self.code, {'type': 'joinRoom', 'nickname': self.nickname, 'room': {
-                'name': room.name,
-                'game': room.game,
-                'maxPlayer': room.max_player,
-                'players': room.players
-            }})
-
-            return
+            await self.joinRoom(data)
         if function_name == 'ready':
-            room = Room.objects.get(code=self.code)
-            players = room.players
-
-            start = (len(players) == room.max_player)
-            for i in range(len(players)):
-                if players[i].get('username', '') == self.username:
-                    players[i]['ready'] = True
-                    room.players = players
-                    room.save()
-                    await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
-                        'type': 'ROOM',
-                        'value': {
-                            'name': room.name,
-                            'game': room.game,
-                            'maxPlayer': room.max_player,
-                            'players': room.players
-                        }
-                    }})
-                elif not players[i].get('ready', False):
-                    start = False
-
-            if start:
-                self.game = ChessBoard(room.players[0]['username'], room.players[1]['username'])
-                room.status = 1
-                await self.channel_layer.group_send('lobby', {'type': 'sendData', 'data': {'type': 'LOBBY_UPDATE'}})
-                await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
-                    'type': 'GAME',
-                    'value': self.game.getData()
-                }})
-
-            return
-
-        await self.channel_layer.group_send(self.code, {'type': function_name, 'data': data})
+            await self.ready()
+        if function_name == 'chessMove':
+            await self.chessMove(data)
 
     async def sendData(self, event):
         await self.send(text_data=json.dumps(event['data']))
 
-    async def chatting(self, event):
-        await self.send(text_data=json.dumps({'type': 'CHATTING', 'value': event['data']}))
+    async def joinRoom(self, data):
+        room = Room.objects.get(code=self.code)
+        players = room.players
 
-    async def joinRoom(self, event):
-        nickname = event['nickname']
-        room = event['room']
+        dummyIndex = 0
+        duplicated = False
+        for i in range(len(players)):
+            if players[i] == 'dummy':
+                dummyIndex = i
+            elif players[i]['username'] == data['username']:
+                duplicated = True
 
-        await self.send(text_data=json.dumps({
+        self.hasInfo = False
+        if duplicated:
+            del players[dummyIndex]
+            room.players = players
+            room.save()
+            await self.send(text_data=json.dumps({
+                'type': 'KICK',
+                'value': '중복 접속이 감지되었습니다.'
+            }))
+            return
+
+        players[dummyIndex] = data
+        players[dummyIndex]['ready'] = False
+        room.players = players
+        room.save()
+        self.hasInfo = True
+
+        self.username = data['username']
+        self.nickname = data['nickname']
+        self.image = data['image']
+
+        await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
             'type': 'ROOM',
-            'value': room
-        }))
-        await self.send(text_data=json.dumps({
+            'value': {
+                'name': room.name,
+                'game': room.game,
+                'maxPlayer': room.max_player,
+                'players': room.players
+            }
+        }})
+        await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
             'type': 'CHATTING',
             'value': {
                 'type': 'NOTICE',
                 'info': 'JOIN',
-                'content': nickname + ' 님이 참가했습니다.'
+                'content': self.nickname + ' 님이 참가했습니다.'
             }
+        }})
+
+    async def sendChess(self, event):
+        data = deepcopy(event['data'])
+
+        idx = 0 if data['players'][0]['username'] == self.username else 1
+        data['myColor'] = data['players'][idx]['color']
+
+        if data['players'][idx]['color'] == 1:
+            data['board'].reverse()
+            data['moveable'].reverse()
+            for i in range(8):
+                for j in range(8):
+                    data['moveable'][i][j].reverse()
+            data['lastMove'][0]['x'] = 7 - data['lastMove'][0]['x']
+            data['lastMove'][1]['x'] = 7 - data['lastMove'][1]['x']
+        if idx == 1:
+            data['players'].reverse()
+
+        await self.send(text_data=json.dumps({
+            'type': 'GAME',
+            'value': data
         }))
 
-    async def chessMove(self, event):
-        print(event['data'])
+    async def ready(self):
+        room = Room.objects.get(code=self.code)
+        players = room.players
+
+        # ready 적용
+        start = (len(players) == room.max_player)
+        for i in range(len(players)):
+            if players[i].get('username', '') == self.username:
+                players[i]['ready'] = True
+                room.players = players
+                room.save()
+                await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
+                    'type': 'ROOM',
+                    'value': {
+                        'name': room.name,
+                        'game': room.game,
+                        'maxPlayer': room.max_player,
+                        'players': room.players
+                    }
+                }})
+            elif not players[i].get('ready', False):
+                start = False
+
+        if start:
+            # ready 초기화
+            for i in range(len(players)):
+                players[i]['ready'] = False
+            room.players = players
+            room.save()
+            await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
+                'type': 'ROOM',
+                'value': {
+                    'name': room.name,
+                    'game': room.game,
+                    'maxPlayer': room.max_player,
+                    'players': room.players
+                }
+            }})
+
+            # 게임 세팅
+            gamePlayers = deepcopy(room.players)
+            game = ChessBoard(gamePlayers)
+            room.status = 1
+            room.data = json.dumps(game.getSave(), ensure_ascii=False)
+            room.save()
+            await self.channel_layer.group_send('lobby', {'type': 'sendData', 'data': {'type': 'LOBBY_UPDATE'}})
+            await self.channel_layer.group_send(self.code, {'type': 'sendChess', 'data': game.getData()})
+            await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': {
+                'type': 'CHATTING',
+                'value': {
+                    'type': 'GAME',
+                    'info': 'RESULT',
+                    'content': '게임을 시작합니다!'
+                }
+            }})
+
+    async def chessMove(self, data):
+        # 로드
+        room = Room.objects.get(code=self.code)
+        game = ChessBoard()
+        game.setting(json.loads(room.data))
+
+        # 이동 후 턴 변경
+        game.move(data)
+        game.turn = 1 - game.turn
+        room.data = json.dumps(game.getSave(), ensure_ascii=False)
+        room.save()
+
+        # 게임 상태 체크
+        data = game.getData()
+        if data['message']:
+            await self.channel_layer.group_send(self.code, {'type': 'sendData', 'data': data['message']})
+        del data['message']
+
+        if data['result']:
+            room.status = 0
+            room.save()
+
+            recordResult = data['result']['recordResult']
+            players = []
+            for i in range(len(game.players)):
+                players.append(game.players[i]['username'])
+            MatchRecord(
+                game=0,
+                players=players,
+                result=recordResult,
+                date=datetime.datetime.now(),
+            ).save()
+            del data['result']['recordResult']
+
+        await self.channel_layer.group_send(self.code, {'type': 'sendChess', 'data': data})

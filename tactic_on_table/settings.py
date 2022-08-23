@@ -24,7 +24,6 @@ INSTALLED_APPS = [
     'image',
     'account',
     'room',
-    'game',
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -123,7 +122,7 @@ TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
