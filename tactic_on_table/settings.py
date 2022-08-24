@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'sslserver'
 ]
 
 ASGI_APPLICATION = 'tactic_on_table.routing.application'
