@@ -17,6 +17,7 @@ daphne==2.5.0
 Django==3.2.15
 django-cors-headers==3.13.0
 django-dotenv==1.4.2
+django-sslserver==0.22
 djangorestframework==3.13.1
 hiredis==2.0.0
 hyperlink==21.0.0
