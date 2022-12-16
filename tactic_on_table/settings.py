@@ -13,7 +13,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'tot.server-seungha.shop']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'tot.swpp2022sample-seuha516.shop']
 
 
 # Application definition
