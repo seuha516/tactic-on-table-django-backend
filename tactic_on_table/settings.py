@@ -85,8 +85,8 @@ WSGI_APPLICATION = 'tactic_on_table.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get("DB_NAME"),
-        'USER': os.environ.get("DB_USER"),
+        'NAME': 'tactic_on_table_db',
+        'USER': 'tactic_on_table_user',
         'PASSWORD': os.environ.get("DB_PASSWORD"),
         'HOST': 'localhost',
         'PORT': '3306'
