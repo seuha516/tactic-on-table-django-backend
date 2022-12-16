@@ -3,7 +3,7 @@ Description=uWSGI service
 After=syslog.target
 
 [Service]
-ExecStart=/home/jeon/TacticOnTableVenv/bin/uwsgi -i /home/jeon/Server/tot/.config/uwsgi/tactic_on_table.ini
+ExecStart=/home/jeon/project/tactic-on-table-django-backend/TacticOnTableVenv/bin/uwsgi -i /home/jeon/project/tactic-on-table-django-backend/.config/uwsgi/tactic_on_table.ini
 
 Restart=always
 KillSignal=SIGQUIT
