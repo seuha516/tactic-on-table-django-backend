@@ -11,7 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Development can opt in explicitly; production must fail closed by default.
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'tot.swpp2022sample-seuha516.shop']
 
@@ -95,7 +96,7 @@ DATABASES = {
 
 
 # Password validation
-# https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
+# https://docs.djangoproject.com/en/4.0/topics/auth/passwords/
 
 AUTH_PASSWORD_VALIDATORS = [
     {
