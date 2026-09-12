@@ -5,6 +5,16 @@ from rest_framework.parsers import JSONParser
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Account
+from utils.jwtMiddleware import decode_jwt
+
+def is_account_owner(request, username):
+    access_token = request.COOKIES.get('access_token')
+    if not access_token:
+        return False
+    try:
+        return decode_jwt(access_token).get('username') == username
+    except Exception:
+        return False
 
 @csrf_exempt
 def signup(request):
@@ -112,9 +122,8 @@ def user(request):
 
             cursor = connection.cursor()
             strSQL = "SELECT `num`, `game`, `players`, `result`, `date` FROM match_record WHERE %s " \
-                     "MEMBER OF( players ) ORDER BY date DESC" \
-                     % ('\"%s\"' % username)
-            cursor.execute(strSQL)
+                     "MEMBER OF( players ) ORDER BY date DESC"
+            cursor.execute(strSQL, [json.dumps(username)])
             sqlData = cursor.fetchall()
             connection.close()
 
@@ -169,7 +178,7 @@ def user(request):
 
             return JsonResponse({
                 'username': account.username,
-                'email': account.email,
+                'email': account.email if is_account_owner(request, account.username) else None,
                 'nickname': account.nickname,
                 'image': account.image,
                 'totalScore': account.total_score,
